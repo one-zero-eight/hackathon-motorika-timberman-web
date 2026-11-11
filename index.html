@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#1b110b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Лесоруб">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="description" content="Игровой тренажёр раздельной активации мышц-сгибателей и разгибателей при освоении протеза руки. Установка на экран Домой и офлайн-игра.">
+  <title>Лесоруб</title>
+  <link id="-gd-engine-icon" rel="icon" type="image/png" href="index.icon.png" />
+<link rel="apple-touch-icon" href="index.apple-touch-icon.png"/>
+<link rel="manifest" href="index.manifest.json">
+
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #1b110b; color: #f8e4b6; font-family: system-ui, sans-serif; overscroll-behavior: none; }
+    #canvas { display: block; touch-action: none; outline: none; }
+    #loading { position: fixed; inset: 0; z-index: 10; display: grid; place-content: center; gap: 18px; padding: 24px; text-align: center; background: #1b110b; }
+    #loading img { width: 144px; height: 144px; margin: auto; image-rendering: pixelated; border-radius: 24px; }
+    h1 { margin: 0; font-size: 32px; }
+    p { margin: 0; line-height: 1.5; max-width: 32em; }
+    progress { width: min(80vw, 320px); margin: auto; accent-color: #c84e22; }
+    .muted { color: #ceb88f; font-size: 14px; }
+    #error { white-space: pre-line; color: #ffb5a6; }
+    #toast, #update { position: fixed; z-index: 20; bottom: max(12px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); padding: 12px 16px; border-radius: 10px; background: #342214; box-shadow: 0 2px 12px #0008; text-align: center; max-width: 85vw; }
+    #toast { pointer-events: none; font-size: 14px; }
+    button { font: inherit; color: #fff2d4; background: #99401e; padding: 10px 14px; border: 1px solid #d8863d; border-radius: 6px; cursor: pointer; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <canvas id="canvas" tabindex="0" aria-label="Игра Лесоруб">Нужен браузер с поддержкой WebGL 2.</canvas>
+  <section id="loading" aria-live="polite">
+    <img src="index.512x512.png" alt="Лесоруб">
+    <h1>Лесоруб</h1>
+    <p id="loading-text">Загружаем игру…</p>
+    <progress id="progress"></progress>
+    <p class="muted" id="install-hint">На iPhone: Safari → Поделиться → На экран «Домой».<br>Для звука коснитесь экрана. Первая загрузка требует интернета.</p>
+    <p id="error" hidden></p>
+    <button id="retry" hidden onclick="location.reload()">Попробовать ещё раз</button>
+  </section>
+  <div id="toast" role="status" hidden></div>
+  <div id="update" hidden>
+    <p>Доступна новая версия игры.</p>
+    <button id="apply-update">Обновить</button>
+    <button id="later-update">Позже</button>
+  </div>
+  <noscript>Для игры необходимо включить JavaScript.</noscript>
+  <script src="index.js"></script>
+  <script>
+    'use strict';
+    const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":1926728,"index.wasm":39514754},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4,"serviceWorker":"index.service.worker.js"};
+    const GODOT_THREADS_ENABLED = false;
+    // An embedded itch.io game must not depend on third-party storage or PWA
+    // registration. The itch ZIP also disables this when opened at top level.
+    if (window.self !== window.top) GODOT_CONFIG.serviceWorker = '';
+    const PWA_ENABLED = Boolean(GODOT_CONFIG.serviceWorker);
+    const engine = new Engine(GODOT_CONFIG);
+    async function ensurePwaRegistration() {
+      if (!PWA_ENABLED || !('serviceWorker' in navigator) || !window.isSecureContext) return null;
+      const existing = await navigator.serviceWorker.getRegistration(new URL('./', location.href));
+      if (existing) return existing;
+      return navigator.serviceWorker.register(GODOT_CONFIG.serviceWorker, { updateViaCache: 'none' });
+    }
+    // Godot invokes this after starting the engine without awaiting its promise.
+    // Reuse an active registration offline and never let an optional PWA/storage
+    // failure prevent the game itself from running (e.g. Safari iframe policies).
+    engine.installServiceWorker = () => ensurePwaRegistration().catch((error) => {
+      console.warn('Офлайн-кэш пока недоступен:', error);
+      return null;
+    });
+    if (!PWA_ENABLED) {
+      document.getElementById('install-hint').textContent = 'Тапайте слева и справа от дерева. Звук включается после первого касания. Для этой версии нужен интернет.';
+    }
+    const loading = document.getElementById('loading');
+    const progress = document.getElementById('progress');
+    let refreshing = false;
+    let applyUpdate = false;
+    let gameReady = false;
+    window.lesorubState = { gameReady: false, offlineReady: false, error: null };
+
+    function toast(message) {
+      const element = document.getElementById('toast');
+      element.textContent = message;
+      element.hidden = false;
+      setTimeout(() => { element.hidden = true; }, 6500);
+    }
+
+    function fail(error) {
+      console.error(error);
+      const message = error instanceof Error ? error.message : String(error);
+      window.lesorubState.error = message;
+      document.getElementById('loading-text').textContent = 'Не удалось запустить игру';
+      const notice = document.getElementById('error');
+      notice.textContent = message + '\nПопробуйте обновить iOS, закрыть лишние вкладки и открыть игру в Safari. Нужна поддержка WebGL 2.';
+      notice.hidden = false;
+      document.getElementById('retry').hidden = false;
+      progress.hidden = true;
+      loading.hidden = false;
+    }
+
+    async function setupPwa() {
+      const registration = await ensurePwaRegistration();
+      if (!registration) return;
+      function offerUpdate() {
+        if (registration.waiting && navigator.serviceWorker.controller) {
+          document.getElementById('update').hidden = false;
+        }
+      }
+      offerUpdate();
+      registration.addEventListener('updatefound', () => {
+        const installing = registration.installing;
+        if (installing) installing.addEventListener('statechange', offerUpdate);
+      });
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (applyUpdate && !refreshing) {
+          refreshing = true;
+          location.reload();
+        }
+      });
+      document.getElementById('apply-update').onclick = () => {
+        if (registration.waiting) {
+          applyUpdate = true;
+          registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+        }
+      };
+      document.getElementById('later-update').onclick = () => {
+        document.getElementById('update').hidden = true;
+      };
+      if (navigator.onLine) registration.update().catch(console.warn);
+      const ready = await navigator.serviceWorker.ready;
+      const channel = new MessageChannel();
+      channel.port1.onmessage = (event) => {
+        if (event.data && event.data.type === 'OFFLINE_READY') {
+          window.lesorubState.offlineReady = true;
+          if (gameReady) toast('Игра сохранена для запуска без интернета');
+        }
+      };
+      ready.active.postMessage({ type: 'CHECK_OFFLINE' }, [channel.port2]);
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && navigator.onLine) registration.update().catch(console.warn);
+      });
+    }
+
+    const missing = Engine.getMissingFeatures({ threads: GODOT_THREADS_ENABLED });
+    if (missing.length) {
+      fail('В браузере недоступно: ' + missing.join(', '));
+    } else {
+      // Install the offline cache alongside engine loading, not after it. The
+      // service worker caches the full game even on the very first online visit.
+      setupPwa().catch((error) => console.warn('Офлайн-кэш пока недоступен:', error));
+      engine.startGame({
+        onProgress: (current, total) => {
+          if (total > 0) { progress.max = total; progress.value = current; }
+        },
+        onExit: (code) => { if (code) fail('Игра завершилась с кодом ' + code); },
+      }).then(() => {
+        gameReady = true;
+        window.lesorubState.gameReady = true;
+        loading.hidden = true;
+        document.getElementById('canvas').focus();
+        if (window.lesorubState.offlineReady) toast('Игра сохранена для запуска без интернета');
+      }).catch(fail);
+    }
+  </script>
+</body>
+</html>
+
