@@ -2,7 +2,7 @@
 
 // tools/prepare_web.py replaces these tokens with a content hash and the exact
 // exported file list. Cache the whole build atomically before claiming clients.
-const BUILD_VERSION = '304e2d016ecdd67a40ef';
+const BUILD_VERSION = '702f8f5e2b7b382b7f44';
 const FILES = ["GODOT_COPYRIGHT.txt", "GODOT_LICENSE.txt", "README.md", "index.144x144.png", "index.180x180.png", "index.192x192.png", "index.512x512.png", "index.apple-touch-icon.png", "index.audio.position.worklet.js", "index.audio.worklet.js", "index.html", "index.icon.png", "index.js", "index.manifest.json", "index.offline.html", "index.pck", "index.png", "index.wasm", "install.html"];
 const CACHE_PREFIX = `lesorub:${new URL(self.registration.scope).pathname}:`;
 const CACHE_NAME = CACHE_PREFIX + BUILD_VERSION;

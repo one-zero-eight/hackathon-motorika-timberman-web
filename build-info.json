@@ -1,5 +1,5 @@
 {
-  "version": "304e2d016ecdd67a40ef",
+  "version": "702f8f5e2b7b382b7f44",
   "offline_files": [
     "GODOT_COPYRIGHT.txt",
     "GODOT_LICENSE.txt",
@@ -21,11 +21,11 @@
     "index.wasm",
     "install.html"
   ],
-  "bytes": 41896316,
+  "bytes": 41896424,
   "files": {
     "GODOT_COPYRIGHT.txt": 100108,
     "GODOT_LICENSE.txt": 1149,
-    "README.md": 9173,
+    "README.md": 9281,
     "index.144x144.png": 2853,
     "index.180x180.png": 2986,
     "index.192x192.png": 2169,
