@@ -1,5 +1,5 @@
 {
-  "version": "02fcb25c2b51e504f9c3",
+  "version": "832b11e5c66327ae994f",
   "offline_files": [
     "GODOT_COPYRIGHT.txt",
     "GODOT_LICENSE.txt",
@@ -22,11 +22,11 @@
     "install.html",
     "install.js"
   ],
-  "bytes": 41903528,
+  "bytes": 41924149,
   "files": {
     "GODOT_COPYRIGHT.txt": 100108,
     "GODOT_LICENSE.txt": 1149,
-    "README.md": 10643,
+    "README.md": 10608,
     "index.144x144.png": 2853,
     "index.180x180.png": 2986,
     "index.192x192.png": 2169,
@@ -39,7 +39,7 @@
     "index.js": 279815,
     "index.manifest.json": 896,
     "index.offline.html": 960,
-    "index.pck": 1927752,
+    "index.pck": 1948408,
     "index.png": 21343,
     "index.wasm": 39514754,
     "install.html": 4542,
