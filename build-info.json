@@ -1,5 +1,5 @@
 {
-  "version": "702f8f5e2b7b382b7f44",
+  "version": "02fcb25c2b51e504f9c3",
   "offline_files": [
     "GODOT_COPYRIGHT.txt",
     "GODOT_LICENSE.txt",
@@ -19,13 +19,14 @@
     "index.pck",
     "index.png",
     "index.wasm",
-    "install.html"
+    "install.html",
+    "install.js"
   ],
-  "bytes": 41896424,
+  "bytes": 41903528,
   "files": {
     "GODOT_COPYRIGHT.txt": 100108,
     "GODOT_LICENSE.txt": 1149,
-    "README.md": 9281,
+    "README.md": 10643,
     "index.144x144.png": 2853,
     "index.180x180.png": 2986,
     "index.192x192.png": 2169,
@@ -33,14 +34,15 @@
     "index.apple-touch-icon.png": 4141,
     "index.audio.position.worklet.js": 2973,
     "index.audio.worklet.js": 7298,
-    "index.html": 9374,
+    "index.html": 10744,
     "index.icon.png": 2195,
     "index.js": 279815,
     "index.manifest.json": 896,
     "index.offline.html": 960,
-    "index.pck": 1926728,
+    "index.pck": 1927752,
     "index.png": 21343,
     "index.wasm": 39514754,
-    "install.html": 4038
+    "install.html": 4542,
+    "install.js": 2844
   }
 }

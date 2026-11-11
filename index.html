@@ -15,32 +15,48 @@
 <link rel="manifest" href="index.manifest.json">
 
   <style>
-    html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #1b110b; color: #f8e4b6; font-family: system-ui, sans-serif; overscroll-behavior: none; }
-    #canvas { display: block; touch-action: none; outline: none; }
-    #loading { position: fixed; inset: 0; z-index: 10; display: grid; place-content: center; gap: 18px; padding: 24px; text-align: center; background: #1b110b; }
-    #loading img { width: 144px; height: 144px; margin: auto; image-rendering: pixelated; border-radius: 24px; }
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #0c0907; color: #f8e4b6; font-family: system-ui, sans-serif; overscroll-behavior: none; }
+    #stage { position: fixed; inset: 0; display: grid; place-items: center; }
+    #game-frame { position: relative; width: 100%; height: 100%; overflow: hidden; background: #1b110b; }
+    #canvas { display: block; width: 100%; height: 100%; touch-action: none; outline: none; }
+    #loading { position: absolute; inset: 0; z-index: 10; display: grid; place-content: center; gap: 18px; padding: 20px; text-align: center; background: #1b110b; }
+    #loading img { width: 128px; height: 128px; margin: auto; image-rendering: pixelated; border-radius: 24px; }
     h1 { margin: 0; font-size: 32px; }
     p { margin: 0; line-height: 1.5; max-width: 32em; }
-    progress { width: min(80vw, 320px); margin: auto; accent-color: #c84e22; }
-    .muted { color: #ceb88f; font-size: 14px; }
+    progress { width: min(70vw, 280px); margin: auto; accent-color: #c84e22; }
     #error { white-space: pre-line; color: #ffb5a6; }
     #toast, #update { position: fixed; z-index: 20; bottom: max(12px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); padding: 12px 16px; border-radius: 10px; background: #342214; box-shadow: 0 2px 12px #0008; text-align: center; max-width: 85vw; }
     #toast { pointer-events: none; font-size: 14px; }
     button { font: inherit; color: #fff2d4; background: #99401e; padding: 10px 14px; border: 1px solid #d8863d; border-radius: 6px; cursor: pointer; }
+    dialog { width: min(380px, calc(100vw - 64px)); max-height: calc(100dvh - 64px); overflow: auto; color: #f8e4b6; background: #342214; border: 1px solid #d8863d; border-radius: 12px; padding: 24px; }
+    dialog::backdrop { background: #000b; }
+    dialog h2 { margin-top: 0; }
+    dialog p { margin-bottom: 16px; }
+    dialog a { color: #ffd063; }
     [hidden] { display: none !important; }
   </style>
 </head>
 <body>
-  <canvas id="canvas" tabindex="0" aria-label="Игра Лесоруб">Нужен браузер с поддержкой WebGL 2.</canvas>
-  <section id="loading" aria-live="polite">
-    <img src="index.512x512.png" alt="Лесоруб">
-    <h1>Лесоруб</h1>
-    <p id="loading-text">Загружаем игру…</p>
-    <progress id="progress"></progress>
-    <p class="muted" id="install-hint">На iPhone: Safari → Поделиться → На экран «Домой».<br>Для звука коснитесь экрана. Первая загрузка требует интернета.</p>
-    <p id="error" hidden></p>
-    <button id="retry" hidden onclick="location.reload()">Попробовать ещё раз</button>
-  </section>
+  <main id="stage">
+    <div id="game-frame">
+      <canvas id="canvas" tabindex="0" aria-label="Игра Лесоруб">Нужен браузер с поддержкой WebGL 2.</canvas>
+      <section id="loading" aria-live="polite">
+        <img src="index.512x512.png" alt="Лесоруб">
+        <h1>Лесоруб</h1>
+        <p id="loading-text" hidden></p>
+        <progress id="progress" aria-label="Загрузка игры"></progress>
+        <p id="error" hidden></p>
+        <button id="retry" hidden onclick="location.reload()">Попробовать ещё раз</button>
+      </section>
+    </div>
+  </main>
+  <dialog id="install-help" aria-labelledby="install-help-title">
+    <h2 id="install-help-title">Установить «Лесоруба»</h2>
+    <p id="install-help-text"></p>
+    <p>После установки один раз откройте новую иконку онлайн и дождитесь готовности офлайн-кэша.</p>
+    <p><a href="install.html">Подробная инструкция</a></p>
+    <button id="install-help-close" type="button">Понятно</button>
+  </dialog>
   <div id="toast" role="status" hidden></div>
   <div id="update" hidden>
     <p>Доступна новая версия игры.</p>
@@ -48,15 +64,40 @@
     <button id="later-update">Позже</button>
   </div>
   <noscript>Для игры необходимо включить JavaScript.</noscript>
+  <script>
+    const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":1927752,"index.wasm":39514754},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4,"serviceWorker":"index.service.worker.js"};
+    const GODOT_THREADS_ENABLED = false;
+    if (window.self !== window.top) GODOT_CONFIG.serviceWorker = '';
+    const PWA_ENABLED = Boolean(GODOT_CONFIG.serviceWorker);
+    if (PWA_ENABLED) {
+      // Godot's Adaptive policy always expands to window.innerWidth/Height,
+      // ignoring CSS constraints. No-resize lets this wrapper own canvas size.
+      GODOT_CONFIG.canvasResizePolicy = 0;
+      const frame = document.getElementById('game-frame');
+      const canvas = document.getElementById('canvas');
+      const fitGame = () => {
+        const width = window.visualViewport?.width || window.innerWidth;
+        const height = window.visualViewport?.height || window.innerHeight;
+        const scale = Math.min(1, Math.max(1, width) / 540, Math.max(1, height) / 960);
+        const w = 540 * scale;
+        const h = 960 * scale;
+        frame.style.width = w + 'px';
+        frame.style.height = h + 'px';
+        const ratio = window.devicePixelRatio || 1;
+        const pixelsW = Math.max(1, Math.round(w * ratio));
+        const pixelsH = Math.max(1, Math.round(h * ratio));
+        if (canvas.width !== pixelsW) canvas.width = pixelsW;
+        if (canvas.height !== pixelsH) canvas.height = pixelsH;
+      };
+      fitGame();
+      window.addEventListener('resize', fitGame);
+      window.visualViewport?.addEventListener('resize', fitGame);
+    }
+  </script>
+  <script src="install.js"></script>
   <script src="index.js"></script>
   <script>
     'use strict';
-    const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":1926728,"index.wasm":39514754},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4,"serviceWorker":"index.service.worker.js"};
-    const GODOT_THREADS_ENABLED = false;
-    // An embedded itch.io game must not depend on third-party storage or PWA
-    // registration. The itch ZIP also disables this when opened at top level.
-    if (window.self !== window.top) GODOT_CONFIG.serviceWorker = '';
-    const PWA_ENABLED = Boolean(GODOT_CONFIG.serviceWorker);
     const engine = new Engine(GODOT_CONFIG);
     async function ensurePwaRegistration() {
       if (!PWA_ENABLED || !('serviceWorker' in navigator) || !window.isSecureContext) return null;
@@ -64,16 +105,10 @@
       if (existing) return existing;
       return navigator.serviceWorker.register(GODOT_CONFIG.serviceWorker, { updateViaCache: 'none' });
     }
-    // Godot invokes this after starting the engine without awaiting its promise.
-    // Reuse an active registration offline and never let an optional PWA/storage
-    // failure prevent the game itself from running (e.g. Safari iframe policies).
     engine.installServiceWorker = () => ensurePwaRegistration().catch((error) => {
       console.warn('Офлайн-кэш пока недоступен:', error);
       return null;
     });
-    if (!PWA_ENABLED) {
-      document.getElementById('install-hint').textContent = 'Тапайте слева и справа от дерева. Звук включается после первого касания. Для этой версии нужен интернет.';
-    }
     const loading = document.getElementById('loading');
     const progress = document.getElementById('progress');
     let refreshing = false;
@@ -92,7 +127,9 @@
       console.error(error);
       const message = error instanceof Error ? error.message : String(error);
       window.lesorubState.error = message;
-      document.getElementById('loading-text').textContent = 'Не удалось запустить игру';
+      const title = document.getElementById('loading-text');
+      title.textContent = 'Не удалось запустить игру';
+      title.hidden = false;
       const notice = document.getElementById('error');
       notice.textContent = message + '\nПопробуйте обновить iOS, закрыть лишние вкладки и открыть игру в Safari. Нужна поддержка WebGL 2.';
       notice.hidden = false;
@@ -148,8 +185,6 @@
     if (missing.length) {
       fail('В браузере недоступно: ' + missing.join(', '));
     } else {
-      // Install the offline cache alongside engine loading, not after it. The
-      // service worker caches the full game even on the very first online visit.
       setupPwa().catch((error) => console.warn('Офлайн-кэш пока недоступен:', error));
       engine.startGame({
         onProgress: (current, total) => {
